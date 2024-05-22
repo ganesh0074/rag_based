@@ -1,34 +1,31 @@
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.document_loaders import PyPDFLoader, DirectoryLoader,TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from config import * 
+from langchain_community.vectorstores import FAISS
+import pandas as pd
+from langchain.schema import Document
+from langchain_cohere import CohereEmbeddings
+from config_pg import * 
+from dotenv import load_dotenv
 
 def faiss_vector_db():
-
-    dir_loader = DirectoryLoader(
-                            DATA_DIR_PATH,
-                            glob='*.txt',
-                            loader_cls=TextLoader
-                        )
-    docs = dir_loader.load()
-    print("PDFs Loaded")
+    load_dotenv()
+    df = pd.read_csv(r"C:\Users\Lenovo\PycharmProjects\boomlive\theDataset.csv", encoding='utf-8')
+    print("file Loaded")
     
-    txt_splitter = RecursiveCharacterTextSplitter(
-                            chunk_size=CHUNK_SIZE, 
-                            chunk_overlap=CHUNK_OVERLAP
-                        )
-    inp_txt = txt_splitter.split_documents(docs)
-    print("Data Chunks Created")
+    # Create a list of LangChain documents
+    documents = []
+    for _, row in df.iterrows():
+        doc = Document(
+            page_content=row['text'],
+            metadata={'source': row['url']}
+        )
+        documents.append(doc)
 
-    hfembeddings = HuggingFaceEmbeddings(
-                            model_name=EMBEDDER, 
-                            model_kwargs={'device': 'cuda'}
+    embedding_model = CohereEmbeddings(
+                            model=EMBEDDER
                         )
 
-    db = FAISS.from_documents(inp_txt, hfembeddings)
-    db.save_local(VECTOR_DB_PATH)
+    db = FAISS.from_documents(documents, embedding_model)
+    db.save_local(r"D:\jupyter projects\FaissLocalEmbedding")
     print("Vector Store Creation Completed")
 
 if __name__ == "__main__":
-    faiss_vector_db()
+    
